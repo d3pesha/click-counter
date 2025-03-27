@@ -1,0 +1,60 @@
+package main
+
+import (
+	"context"
+	"counter/config"
+	"counter/internal/api/handler"
+	"counter/internal/database"
+	"counter/internal/service"
+	"counter/internal/storage"
+	"counter/seed"
+	"github.com/gofiber/fiber/v2"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
+func main() {
+	cfg := config.LoadConfig()
+
+	db := database.NewPostgresDB(cfg)
+	defer db.DB.Close()
+
+	db.Migrate(cfg)
+	seed.Banners(db.DB)
+
+	memStorage := storage.NewMemoryStorage()
+	bannerStorage := storage.NewBannerStorage(db.DB)
+
+	bannerService := service.NewBannerService(bannerStorage, memStorage)
+
+	worker := service.NewWorker(bannerStorage, memStorage)
+	ctx, cancel := context.WithCancel(context.Background())
+	go worker.Start(ctx)
+
+	app := fiber.New()
+	handler.Register(app, bannerService)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		if err := app.Listen(":" + cfg.AppPort); err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+	}()
+
+	<-sigCh
+	log.Println("Shutting down server...")
+
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	}
+
+	log.Println("Server gracefully stopped")
+}
