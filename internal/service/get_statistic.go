@@ -8,7 +8,12 @@ import (
 )
 
 func (s *bannerService) GetStatistics(ctx context.Context, bannerID int, from, to time.Time) ([]*model.BannerClick, error) {
-	if err := s.saveCurrentMinuteClicks(ctx, bannerID); err != nil {
+	_, err := s.repo.GetByID(ctx, bannerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.saveCurrentMinuteClicks(ctx, bannerID); err != nil {
 		return nil, err
 	}
 

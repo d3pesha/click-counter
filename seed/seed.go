@@ -14,7 +14,7 @@ func Banners(db *sql.DB) {
 	for _, name := range banners {
 		_, err := db.Exec("INSERT INTO banners (name) VALUES ($1) ON CONFLICT DO NOTHING;", name)
 		if err != nil {
-			log.Fatalf("error inserting banner %s: %v", name, err)
+			log.Printf("error inserting banner %s: %v", name, err)
 		}
 	}
 
