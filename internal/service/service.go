@@ -12,13 +12,19 @@ type BannerService interface {
 	GetStatistics(ctx context.Context, bannerID int, from, to time.Time) ([]*model.BannerClick, error)
 }
 type bannerService struct {
-	repo  storage.BannerStorage
-	cache storage.MemoryStorage
+	bannerStorage storage.BannerStorage
+	clickStorage  storage.BannerClickStorage
+	cache         storage.MemoryStorage
 }
 
-func NewBannerService(repo storage.BannerStorage, cache storage.MemoryStorage) BannerService {
+func NewBannerService(
+	bannerStorage storage.BannerStorage,
+	clickStorage storage.BannerClickStorage,
+	cache storage.MemoryStorage,
+) BannerService {
 	return &bannerService{
-		repo:  repo,
-		cache: cache,
+		bannerStorage: bannerStorage,
+		clickStorage:  clickStorage,
+		cache:         cache,
 	}
 }

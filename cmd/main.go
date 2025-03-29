@@ -17,21 +17,25 @@ import (
 )
 
 func main() {
-	cfg := config.LoadConfig()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	cfg := config.LoadConfig()
 	db := database.NewPostgresDB(cfg)
 	defer db.DB.Close()
 
 	db.Migrate(cfg)
 	seed.Banners(db.DB)
 
-	memStorage := storage.NewMemoryStorage()
+	clickStorage := storage.NewBannerClickStorage(db.DB)
 	bannerStorage := storage.NewBannerStorage(db.DB)
 
-	bannerService := service.NewBannerService(bannerStorage, memStorage)
+	memStorage := storage.NewMemoryStorage(bannerStorage)
+	memStorage.FillCache(ctx)
 
-	worker := service.NewWorker(bannerStorage, memStorage)
-	ctx, cancel := context.WithCancel(context.Background())
+	bannerService := service.NewBannerService(bannerStorage, clickStorage, memStorage)
+
+	worker := service.NewWorker(clickStorage, memStorage)
 	go worker.Start(ctx)
 
 	app := fiber.New()
@@ -47,8 +51,6 @@ func main() {
 
 	<-sigCh
 	log.Println("Shutting down server...")
-
-	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

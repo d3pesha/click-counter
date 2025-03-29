@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 )
 
 type bannerStorage struct {
@@ -33,49 +32,34 @@ func (r *bannerStorage) GetByID(ctx context.Context, bannerID int) (*model.Banne
 	return &banner, err
 }
 
-func (r *bannerStorage) IncrementClick(ctx context.Context, bannerID int, timestamp time.Time, clickCount int) error {
-	query := `INSERT INTO banner_clicks (banner_id, timestamp, click_count) 
-              VALUES ($1, $2, $3)
-              ON CONFLICT (banner_id, timestamp) 
-              DO UPDATE SET click_count = banner_clicks.click_count + EXCLUDED.click_count`
-
-	_, err := r.db.ExecContext(ctx, query, bannerID, timestamp, clickCount)
+func (r *bannerStorage) GetAllIDs(ctx context.Context) ([]int, error) {
+	query := `SELECT id FROM banners`
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return fmt.Errorf("failed to increment click: %w", err)
-	}
-
-	return nil
-}
-
-func (r *bannerStorage) GetStats(ctx context.Context, bannerID int, from, to time.Time) ([]*model.BannerClick, error) {
-	query := `SELECT banner_id, timestamp, click_count FROM banner_clicks 
-              WHERE banner_id = $1 AND timestamp BETWEEN $2 AND $3`
-
-	rows, err := r.db.QueryContext(ctx, query, bannerID, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return nil, fmt.Errorf("failed to get banner IDs: %w", err)
 	}
 	defer rows.Close()
 
-	var rowCount int
-	err = r.db.QueryRowContext(ctx, `
-        SELECT COUNT(*)
-        FROM banner_clicks
-        WHERE banner_id = $1 AND timestamp BETWEEN $2 AND $3
-    `, bannerID, from, to).Scan(&rowCount)
+	var count int
+	countQuery := `SELECT COUNT(*) FROM banners`
+	err = r.db.QueryRowContext(ctx, countQuery).Scan(&count)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count rows: %w", err)
+		return nil, fmt.Errorf("failed to count banners: %w", err)
 	}
 
-	stats := make([]*model.BannerClick, 0, rowCount)
+	ids := make([]int, 0, count)
 	for rows.Next() {
-		var click model.BannerClick
-		if err = rows.Scan(&click.BannerID, &click.Timestamp, &click.ClickCount); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+		var id int
+		if err = rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan banner ID: %w", err)
 		}
 
-		stats = append(stats, &click)
+		ids = append(ids, id)
 	}
 
-	return stats, nil
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return ids, nil
 }

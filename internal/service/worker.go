@@ -8,14 +8,14 @@ import (
 )
 
 type Worker struct {
-	repo  storage.BannerStorage
-	cache storage.MemoryStorage
+	clickStorage storage.BannerClickStorage
+	cache        storage.MemoryStorage
 }
 
-func NewWorker(repo storage.BannerStorage, cache storage.MemoryStorage) *Worker {
+func NewWorker(clickStorage storage.BannerClickStorage, cache storage.MemoryStorage) *Worker {
 	return &Worker{
-		repo:  repo,
-		cache: cache,
+		clickStorage: clickStorage,
+		cache:        cache,
 	}
 }
 
@@ -43,11 +43,15 @@ func (w *Worker) Start(ctx context.Context) {
 }
 
 func (w *Worker) processClicks(ctx context.Context) {
-	clicks := w.cache.GetAndClearClicks()
+	clicks := w.cache.GetAndClear()
 	now := time.Now().Truncate(time.Minute)
 
 	for bannerID, count := range clicks {
-		err := w.repo.IncrementClick(ctx, bannerID, now, count)
+		if count <= 0 {
+			continue
+		}
+
+		err := w.clickStorage.IncrementClick(ctx, bannerID, now, count)
 		if err != nil {
 			log.Printf("Error saving clicks for bannerID %d: %v\n", bannerID, err)
 		} else {
