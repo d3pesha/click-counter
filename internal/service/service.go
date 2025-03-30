@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-type BannerService interface {
-	RegisterClick(ctx context.Context, bannerID int) error
-	GetStatistics(ctx context.Context, bannerID int, from, to time.Time) ([]*model.BannerClick, error)
-}
 type bannerService struct {
 	bannerStorage storage.BannerStorage
 	clickStorage  storage.BannerClickStorage
@@ -27,4 +23,9 @@ func NewBannerService(
 		clickStorage:  clickStorage,
 		cache:         cache,
 	}
+}
+
+type BannerService interface {
+	RegisterClick(ctx context.Context, bannerID int) error
+	GetStatistics(ctx context.Context, bannerID int, from, to time.Time) ([]*model.BannerClick, error)
 }
