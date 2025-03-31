@@ -64,12 +64,13 @@ go mod download
 
 3. Configure environment variables
 ```
-POSTGRES_USER=your_user
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=your_db
-POSTGRES_HOST=your_db_host
-POSTGRES_PORT=5432
-POSTGRES_SSLMODE=disable
+APP_PORT = 3000
+POSTGRES_USER = postgres
+POSTGRES_PASSWORD = postgres
+POSTGRES_DB = postgres
+POSTGRES_HOST = db
+POSTGRES_PORT = 5432
+POSTGRES_SSLMODE = disable
 ```
 
 4. Run the service with Docker Compose
